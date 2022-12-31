@@ -1,0 +1,27 @@
+{
+  "name": "nfcmanager",
+  "version": "1.0.0",
+  "description": "GUI application for managing NFC smartcards",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "./node_modules/.bin/electron .",
+    "rebuild": "./node_modules/.bin/electron-rebuild"
+  },
+  "keywords": [
+    "nfc",
+    "desfire",
+    "pcsc",
+    "mifare"
+  ],
+  "author": "Renze Nicolai",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^22.0.0",
+    "electron-rebuild": "^3.2.9"
+  },
+  "dependencies": {
+    "@aapeli/nfc-pcsc": "^0.8.3",
+    "@nicolaielectronics/desfire.js": "^0.0.2"
+  }
+}

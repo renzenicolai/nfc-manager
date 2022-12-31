@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>NFC manager</title>
+  </head>
+  <body>
+    <pre id="log"></pre>
+    <script>
+      window.electronAPI.onNfcReaderAttached((_event, value) => {
+        document.getElementById("log").innerHTML += "Reader attached: " + value + "\r\n";
+      });
+      window.electronAPI.onNfcReaderRemoved((_event, value) => {
+        document.getElementById("log").innerHTML += "Reader removed: " + value + "\r\n";
+      });
+      window.electronAPI.onNfcCardAttached((_event, value) => {
+        console.log("Card attached", value);
+        document.getElementById("log").innerHTML += "Card attached to '" + value.reader + "': " + value.type + " " + value.uid + "\r\n";
+      });
+      window.electronAPI.onNfcCardRemoved((_event, value) => {
+        console.log("Card removed", value);
+        document.getElementById("log").innerHTML += "Card removed from '" + value.reader + "\r\n";
+      });
+    </script>
+</html>
