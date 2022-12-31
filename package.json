@@ -17,8 +17,8 @@
   "author": "Renze Nicolai",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^22.0.0",
-    "electron-rebuild": "^3.2.9"
+    "@electron/rebuild": "^3.2.10",
+    "electron": "^22.0.0"
   },
   "dependencies": {
     "@aapeli/nfc-pcsc": "^0.8.3",
