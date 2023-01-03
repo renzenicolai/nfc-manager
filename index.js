@@ -45,7 +45,7 @@ function handleSetOwner(_event, newName) {
 function startApp() {
     createWindow();
 
-    mainWindow.webContents.openDevTools();
+    //mainWindow.webContents.openDevTools();
 
     nfc = new NFC();
 
