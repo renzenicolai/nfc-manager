@@ -35,8 +35,6 @@ function createWindow() {
     mainWindow.loadFile('index.html');
     
     ipcMain.on('set-owner', handleSetOwner);
-    
-    getNameFromOldDb();
 }
 
 function handleSetOwner(_event, newName) {
@@ -261,8 +259,6 @@ class NfcReader {
             });
             
             updateDatabase(name, this.card.uid, key.toString('hex') + secret.toString('hex'));
-            
-            getNameFromOldDb();
         } catch (error) {
             mainWindow.webContents.send('nfc-card-error', {
                 reader: this._reader.name,
