@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld(
         receive: (channel, func) => {
              ipcRenderer.on(channel, (event, ...args) => func(...args));
         },
+        setOwner: (name) => {
+            ipcRenderer.send('set-owner', name);
+        },
         onNfcReaderAttached: (callback) => {
             ipcRenderer.on('nfc-reader-attached', callback);
         },
@@ -24,6 +27,15 @@ contextBridge.exposeInMainWorld(
         },
         onNfcCardRemoved: (callback) => {
             ipcRenderer.on('nfc-card-removed', callback);
+        },
+        onNfcCardProvisioned: (callback) => {
+            ipcRenderer.on('nfc-card-provisioned', callback);
+        },
+        onNfcCardError: (callback) => {
+            ipcRenderer.on('nfc-card-error', callback);
+        },
+        onNfcCardProvisioningStarted: (callback) => {
+            ipcRenderer.on('nfc-card-provisioning-started', callback);
         }
     }
 );
