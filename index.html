@@ -29,7 +29,7 @@
       window.electronAPI.onNfcCardProvisioned((_event, value) => {
         console.log("Card provisioning completed", value);
         //document.getElementById("log").innerHTML += "Succesfully provisioned card " + value.uid + ": " + value.data + "\r\n";
-        document.getElementById("log").innerHTML += "<h3>Succesfully provisioned card " + value.uid + " for " + value.owner + "</h3>\r\n";
+        document.getElementById("log").innerHTML += "<h3>Succesfully provisioned card " + value.uid + " for " + value.owner + ": " + value.data + "</h3>\r\n";
       });
       window.electronAPI.onNfcCardError((_event, value) => {
         console.log("Card provisioning error", value);
