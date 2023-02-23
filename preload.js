@@ -36,6 +36,21 @@ contextBridge.exposeInMainWorld(
         },
         onNfcCardProvisioningStarted: (callback) => {
             ipcRenderer.on('nfc-card-provisioning-started', callback);
-        }
+        },
+        onReadSuccess: (callback) => {
+            ipcRenderer.on('nfc-card-read-success', callback);
+        },
+        onReadFailure: (callback) => {
+            ipcRenderer.on('nfc-card-read-failure', callback);
+        },
+        onWriteSuccess: (callback) => {
+            ipcRenderer.on('nfc-card-write-success', callback);
+        },
+        onWriteFailure: (callback) => {
+            ipcRenderer.on('nfc-card-write-failure', callback);
+        },
+        onTimeout: (callback) => {
+            ipcRenderer.on('nfc-card-write-failure', callback);
+        },
     }
 );

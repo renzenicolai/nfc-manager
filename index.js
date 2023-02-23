@@ -2,10 +2,11 @@
 
 const crypto = require('crypto');
 const path = require('path');
-const { NFC, CONNECT_MODE_DIRECT } = require("@aapeli/nfc-pcsc");
+const { NFC, CONNECT_MODE_DIRECT, KEY_TYPE_A, KEY_TYPE_B } = require("@aapeli/nfc-pcsc");
 const { DesfireCard, DesfireKeySettings } = require("@nicolaielectronics/desfire.js");
 const Atr = require("./parseAtr.js");
 const fs = require('fs');
+const execSync = require('child_process').execSync;
 
 const { app, BrowserWindow, ipcMain } = require('electron');
 
@@ -17,6 +18,8 @@ var name = "anonymous";
 var oldNames = null;
 
 var readers = {};
+
+var cardData = null;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -106,6 +109,58 @@ class GenericCard {
     }
 }
 
+class ClassicCard {
+    constructor(reader, card) {
+        this._reader = reader;
+        this._card = card;
+        this.uid = null;
+    }
+
+    // Standard smartcard commands
+
+    async getUid() {
+        const packet = Buffer.from([0xff, 0xca, 0x00, 0x00, 0x00]);
+        const response = await this._reader.transmit(packet, 12);
+
+        if (response.length < 2) {
+            this.uid = null;
+            throw new Error("Response soo short");
+        }
+
+        const statusCode = response.slice(-2).readUInt16BE(0);
+
+        if (statusCode !== 0x9000) {
+            this.uid = null;
+            throw new Error("Error response from card");
+        }
+
+        this.uid = response.slice(0, -2).toString('hex');
+        return this.uid;
+    }
+    
+    async readData() {
+        let keyA = "44" + this.uid + "45";
+        let keyB = "85fcd982ea5a";
+        await this._reader.authenticate(24, KEY_TYPE_B, keyB);
+        let sector24 = await this._reader.read(24, 16, 16);
+        let sector25 = await this._reader.read(25, 16, 16);
+        let sector26 = await this._reader.read(26, 16, 16);
+        return Buffer.concat([sector24, sector25, sector26]);
+    }
+    
+    async writeData(data) {
+        let keyA = "44" + this.uid + "45";
+        let keyB = "85fcd982ea5a";
+        let sector24 = data.slice(0,16);
+        let sector25 = data.slice(16,32);
+        let sector26 = data.slice(32);
+        await this._reader.authenticate(24, KEY_TYPE_B, keyB);
+        await this._reader.write(24, sector24, 16, 16);
+        await this._reader.write(25, sector25, 16, 16);
+        await this._reader.write(26, sector26, 16, 16);
+    }
+}
+
 class NfcReader {
     constructor(reader, onEnd) {
         this._reader = reader;
@@ -155,7 +210,7 @@ class NfcReader {
                 });
             }
         }*/
-        if (atr.isDesfire()) {
+        /*if (atr.isDesfire()) {
             this.card = new DesfireCard(this._reader, card);
             console.log(this._reader.name + ": Desfire card attached");
             await this.card.getUid();
@@ -164,7 +219,7 @@ class NfcReader {
                 reader: this._reader.name,
                 uid: this.card.uid
             });
-            this.provisionDesfireCard(this.card);
+            //this.provisionDesfireCard(this.card);
         } else {
             this.card = new GenericCard(this._reader, card);
             console.log(this._reader.name + ": Other card attached");
@@ -178,7 +233,30 @@ class NfcReader {
                 reader: this._reader.name,
                 uid: this.card.uid
             });
+        }*/
+        
+        this.card = new ClassicCard(this._reader, card);
+        await this.card.getUid();
+        if (cardData === null) {
+            try {
+                cardData = await this.card.readData();
+                console.log("Read card data", cardData);
+                mainWindow.webContents.send('nfc-card-read-success', {});
+            } catch (error) {
+                mainWindow.webContents.send('nfc-card-read-failure', {});
+            }
+        } else {
+            try {
+                await this.card.writeData(cardData);
+                cardData = null;
+                console.log("Wrote card data");
+                mainWindow.webContents.send('nfc-card-write-success', {});
+            } catch (error) {
+                mainWindow.webContents.send('nfc-card-write-failure', {});
+            }
         }
+        //let data = Buffer.from("d2f9bd1610d4fa1fb5de31228fecf42827e2b46f7ea594773ebdf45f3e95f447de8d344ffe855457be9d743fbef58be8", "hex");
+        //await this.card.writeData(data);
     }
 
     async _onCardRemoved(card) {

@@ -2,38 +2,29 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <title>NFC manager</title>
+    <title>HackerHotel</title>
   </head>
   <body>
-    <input id="name" value="anonymous"><button type="button" onClick="window.electronAPI.setOwner(document.getElementById('name').value);">Set owner</button>
-    <pre id="log"></pre>
+    <div id="app"></div>
     <script>
+      function welcome() {
+        document.getElementById("app").innerHTML = "<h1 style='color: green;'>Ready, present your hotel key for reading!</h1>";
+      }
       window.electronAPI.onNfcReaderAttached((_event, value) => {
-        document.getElementById("log").innerHTML += "Reader attached: " + value + "\r\n";
+        welcome();
       });
-      window.electronAPI.onNfcReaderRemoved((_event, value) => {
-        document.getElementById("log").innerHTML += "Reader removed: " + value + "\r\n";
+      window.electronAPI.onReadSuccess((_event, value) => {
+        document.getElementById("app").innerHTML = "<h1 style='color: black;'>Present keyfob to write to!</h1>";
       });
-      window.electronAPI.onNfcCardAttached((_event, value) => {
-        console.log("Card attached", value);
-        document.getElementById("log").innerHTML += "Card attached to '" + value.reader + "': " + value.type + " " + value.uid + "\r\n";
+      window.electronAPI.onReadFailure((_event, value) => {
+        document.getElementById("app").innerHTML = "<h1 style='color: black;'>Read failed!</h1>";
       });
-      window.electronAPI.onNfcCardRemoved((_event, value) => {
-        console.log("Card removed", value);
-        document.getElementById("log").innerHTML += "Card removed from '" + value.reader + "\r\n";
+      window.electronAPI.onWriteSuccess((_event, value) => {
+        document.getElementById("app").innerHTML = "<h1 style='color: green;'>Done! Have a nice day.</h1>";
+        setTimeout(welcome, 1000);
       });
-      window.electronAPI.onNfcCardProvisioningStarted((_event, value) => {
-        console.log("Card provisioning started", value);
-        document.getElementById("log").innerHTML += "Provisioning card " + value.uid + "...\r\n";
-      });
-      window.electronAPI.onNfcCardProvisioned((_event, value) => {
-        console.log("Card provisioning completed", value);
-        //document.getElementById("log").innerHTML += "Succesfully provisioned card " + value.uid + ": " + value.data + "\r\n";
-        document.getElementById("log").innerHTML += "<h3>Succesfully provisioned card " + value.uid + " for " + value.owner + ": " + value.data + "</h3>\r\n";
-      });
-      window.electronAPI.onNfcCardError((_event, value) => {
-        console.log("Card provisioning error", value);
-        document.getElementById("log").innerHTML += "Failed to provision card " + value.uid + ": " + value.error + "\r\n";
+      window.electronAPI.onWriteFailure((_event, value) => {
+        document.getElementById("app").innerHTML = "<h1 style='color: red;'>Write failed!</h1>";
       });
     </script>
 </html>
