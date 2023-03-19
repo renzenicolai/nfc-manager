@@ -80,11 +80,36 @@ class Atr {
     }
 
     isDesfire() {
+        //return this.isDesfireDebug();
         if (!this.valid) return false;
         if (this.ts != 0x3b) return false;
         if ((Object.keys(this.ta).length != 0) || (Object.keys(this.tb).length != 0) || (Object.keys(this.tc).length != 0)) return false;
         if ((!("1" in this.td)) || (this.td["1"] != 0x80) || (!("2" in this.td)) || (this.td["2"] != 0x01)) return false;
-        if ((this.extra == null) || (this.extra.length != 1) || (this.extra[0] != 0x80)) return false;
+        //if ((this.extra == null) || (this.extra.length != 1) || (this.extra[0] != 0x80)) return false;
+        return true;
+    }
+
+    isDesfireDebug() {
+        if (!this.valid) {
+            console.log("Not valid");
+            return false;
+        }
+        if (this.ts != 0x3b) {
+            console.log("ts not 0x3b", this.ts);
+            return false;
+        }
+        if ((Object.keys(this.ta).length != 0) || (Object.keys(this.tb).length != 0) || (Object.keys(this.tc).length != 0))  {
+            console.log("ta.length != 0 or tb.length != 0 or tc.length != 0", this.ta, this.tb, this.tc);
+            return false;
+        }
+        if ((!("1" in this.td)) || (this.td["1"] != 0x80) || (!("2" in this.td)) || (this.td["2"] != 0x01))  {
+            console.log("td[1] missing or td[1] != 0x80 or td[2] missing or td[2] != 0x01", this.td);
+            return false;
+        }
+        /*if ((this.extra == null) || (this.extra.length != 1) || (this.extra[0] != 0x80))  {
+            console.log("extra == null or extra.length != 1 or extra[0] != 0x80", this.extra);
+            return false;
+        }*/
         return true;
     }
 };

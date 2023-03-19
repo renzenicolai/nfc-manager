@@ -13,8 +13,14 @@ contextBridge.exposeInMainWorld(
         receive: (channel, func) => {
              ipcRenderer.on(channel, (event, ...args) => func(...args));
         },
-        setOwner: (name) => {
-            ipcRenderer.send('set-owner', name);
+        formatDesfireCard: (name) => {
+            ipcRenderer.send('format-desfire-card', name);
+        },
+        provisionDesfireCard: (name) => {
+            ipcRenderer.send('provision-desfire-card', name);
+        },
+        desfireGetApps: (name) => {
+            ipcRenderer.send('desfire-get-apps', name);
         },
         onNfcReaderAttached: (callback) => {
             ipcRenderer.on('nfc-reader-attached', callback);
@@ -31,11 +37,20 @@ contextBridge.exposeInMainWorld(
         onNfcCardProvisioned: (callback) => {
             ipcRenderer.on('nfc-card-provisioned', callback);
         },
+        onNfcCardFormatted: (callback) => {
+            ipcRenderer.on('nfc-card-formatted', callback);
+        },
         onNfcCardError: (callback) => {
             ipcRenderer.on('nfc-card-error', callback);
         },
         onNfcCardProvisioningStarted: (callback) => {
             ipcRenderer.on('nfc-card-provisioning-started', callback);
+        },
+        onNfcCardFormattingStarted: (callback) => {
+            ipcRenderer.on('nfc-card-formatting-started', callback);
+        },
+        onDesfireApps: (callback) => {
+            ipcRenderer.on('desfire-apps', callback);
         }
     }
 );

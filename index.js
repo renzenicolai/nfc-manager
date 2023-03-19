@@ -13,7 +13,6 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 
 var mainWindow = null;
 var nfc = null;
-var name = "anonymous";
 var oldNames = null;
 
 var readers = {};
@@ -31,15 +30,12 @@ function createWindow() {
         icon: "favicon.ico"
     });
 
-    mainWindow.removeMenu();
-    mainWindow.loadFile('index.html');
-    
-    ipcMain.on('set-owner', handleSetOwner);
-}
+    //mainWindow.removeMenu();
+    mainWindow.loadFile('ui/index.html');
 
-function handleSetOwner(_event, newName) {
-    name = newName;
-    console.log("Owner set to ", name);
+    ipcMain.on('format-desfire-card', handleFormatDesfireCard);
+    ipcMain.on('provision-desfire-card', handleProvisionDesfireCard);
+    ipcMain.on('desfire-get-apps', handleDesfireGetApps);
 }
 
 function startApp() {
@@ -47,6 +43,10 @@ function startApp() {
 
     //mainWindow.webContents.openDevTools();
 
+    setTimeout(startNfc, 500);
+}
+
+function startNfc() {
     nfc = new NFC();
 
     nfc.on("reader", async reader => {
@@ -160,11 +160,12 @@ class NfcReader {
             console.log(this._reader.name + ": Desfire card attached");
             await this.card.getUid();
             mainWindow.webContents.send('nfc-card-attached', {
-                type: "desfire",
                 reader: this._reader.name,
-                uid: this.card.uid
+                card: {
+                    type: "desfire",
+                    uid: this.card.uid
+                }
             });
-            this.provisionDesfireCard(this.card);
         } else {
             this.card = new GenericCard(this._reader, card);
             console.log(this._reader.name + ": Other card attached");
@@ -174,9 +175,11 @@ class NfcReader {
                 // Ignore.
             }
             mainWindow.webContents.send('nfc-card-attached', {
-                type: "other",
                 reader: this._reader.name,
-                uid: this.card.uid
+                card: {
+                    type: "unknown",
+                    uid: this.card.uid
+                }
             });
         }
     }
@@ -190,22 +193,62 @@ class NfcReader {
             card: card
         });
     }
-    
-    async provisionDesfireCard(desfire) {
+
+    async formatDesfireCard() {
+        if (this.card === null) {
+            mainWindow.webContents.send('nfc-card-error', {
+                reader: this._reader.name,
+                uid: "",
+                error: "No card on reader"
+            });
+            return;
+        }
+        mainWindow.webContents.send('nfc-card-formatting-started', {
+            reader: this._reader.name,
+            uid: this.card.uid
+        });
+
+        try {
+            await this.card.selectApplication(0x000000); // Select PICC
+            await this.card.authenticateLegacy(0x00, this.card.default_des_key); // Authenticate using default key
+            await this.card.formatPicc(); // Format card
+
+            mainWindow.webContents.send('nfc-card-formatted', {
+                reader: this._reader.name,
+                uid: this.card.uid
+            });
+        } catch (error) {
+            mainWindow.webContents.send('nfc-card-error', {
+                reader: this._reader.name,
+                uid: this.card.uid,
+                error: error.message
+            });
+        }
+    }
+
+    async provisionDesfireCard() {
+        if (this.card === null) {
+            mainWindow.webContents.send('nfc-card-error', {
+                reader: this._reader.name,
+                uid: "",
+                error: "No card on reader"
+            });
+            return;
+        }
         mainWindow.webContents.send('nfc-card-provisioning-started', {
             reader: this._reader.name,
             uid: this.card.uid
         });
-        
+
         try {
             let key = crypto.randomBytes(16);
             let secret = crypto.randomBytes(16);
-            
-            await desfire.selectApplication(0x000000); // Select PICC
-            await desfire.authenticateLegacy(0x00, desfire.default_des_key); // Authenticate using default key
-            await desfire.formatPicc(); // Format card
-            let uid = (await desfire.ev1GetCardUid()).toString('hex');
-            if (desfire.uid !== uid) {
+
+            await this.card.selectApplication(0x000000); // Select PICC
+            await this.card.authenticateLegacy(0x00, this.card.default_des_key); // Authenticate using default key
+
+            let uid = (await this.card.ev1GetCardUid()).toString('hex');
+            if (this.card.uid !== uid) {
                 console.log("Randomized UID mode detected, this card can not be used");
                 mainWindow.webContents.send('nfc-card-error', {
                     reader: this._reader.name,
@@ -214,18 +257,18 @@ class NfcReader {
                 });
                 return;
             }
-            
+
             // Create application, change key and authenticate
-            await desfire.createApplication(0x1984, desfire.constants.keySettings.factoryDefault, 1, desfire.constants.keyType.AES);
-            await desfire.selectApplication(0x1984);
-            await desfire.ev1AuthenticateAes(0, desfire.default_aes_key);
-            await desfire.changeKeyAes(42, 0, key);
-            await desfire.ev1AuthenticateAes(0, key);
-            
+            await this.card.createApplication(0x1984, this.card.constants.keySettings.factoryDefault, 1, this.card.constants.keyType.AES);
+            await this.card.selectApplication(0x1984);
+            await this.card.ev1AuthenticateAes(0, this.card.default_aes_key);
+            await this.card.changeKeyAes(42, 0, key);
+            await this.card.ev1AuthenticateAes(0, key);
+
             // Create file, write secret and read back secret for verification
-            await desfire.createStandardDataFile(1, false, true, 0, 0, 0, 0, 16);
-            await desfire.writeDataEncrypted(1, secret, 0);
-            let fileContents = await desfire.readDataEncrypted(1, 0, 16);
+            await this.card.createStandardDataFile(1, false, true, 0, 0, 0, 0, 16);
+            await this.card.writeDataEncrypted(1, secret, 0);
+            let fileContents = await this.card.readDataEncrypted(1, 0, 16);
             if (Buffer.compare(secret, fileContents) !== 0) {
                 console.log("Failed to verify secret file contents");
                 mainWindow.webContents.send('nfc-card-error', {
@@ -235,12 +278,12 @@ class NfcReader {
                 });
                 return;
             }
-            
+
             // Create file, write name and read back name for verification
-            let nameBuffer = Buffer.from(name).slice(0,16);
-            await desfire.createStandardDataFile(2, false, true, 0, 0, 0, 0, 16);
-            await desfire.writeDataEncrypted(2, nameBuffer, 0);
-            let nameFileContents = await desfire.readDataEncrypted(2, 0, 16);
+            /*let nameBuffer = Buffer.from(name).slice(0,16);
+            await this.card.createStandardDataFile(2, false, true, 0, 0, 0, 0, 16);
+            await this.card.writeDataEncrypted(2, nameBuffer, 0);
+            let nameFileContents = await this.card.readDataEncrypted(2, 0, 16);
             if (Buffer.compare(nameBuffer, nameFileContents.slice(0, nameBuffer.length)) !== 0) {
                 console.log("Failed to verify name file contents", nameBuffer, nameFileContents);
                 mainWindow.webContents.send('nfc-card-error', {
@@ -249,16 +292,42 @@ class NfcReader {
                     error: "Failed to verify name file contents"
                 });
                 return;
-            }
+            }*/
 
             mainWindow.webContents.send('nfc-card-provisioned', {
                 reader: this._reader.name,
                 uid: this.card.uid,
-                data: key.toString('hex') + secret.toString('hex'),
-                owner: name
+                data: key.toString('hex') + secret.toString('hex')
             });
-            
-            updateDatabase(name, this.card.uid, key.toString('hex') + secret.toString('hex'));
+        } catch (error) {
+            mainWindow.webContents.send('nfc-card-error', {
+                reader: this._reader.name,
+                uid: this.card.uid,
+                error: error.message
+            });
+        }
+    }
+
+    async desfireGetApps() {
+        if (this.card === null) {
+            mainWindow.webContents.send('nfc-card-error', {
+                reader: this._reader.name,
+                uid: "",
+                error: "No card on reader"
+            });
+            return;
+        }
+        try {
+            await this.card.selectApplication(0x000000); // Select PICC
+            await this.card.authenticateLegacy(0x00, this.card.default_des_key); // Authenticate using default key
+
+            let apps = await this.card.getApplicationIdentifiers();
+
+            mainWindow.webContents.send('desfire-apps', {
+                reader: this._reader.name,
+                uid: this.card.uid,
+                apps: apps
+            });
         } catch (error) {
             mainWindow.webContents.send('nfc-card-error', {
                 reader: this._reader.name,
@@ -269,11 +338,21 @@ class NfcReader {
     }
 }
 
-function updateDatabase(name, uid, data) {
-    /*let database = JSON.parse(fs.readFileSync("nfc.json"));
-    database[uid] = {
-        secret: data,
-        owner: name
-    };
-    fs.writeFileSync("nfc.json", JSON.stringify(database));*/
+
+function handleFormatDesfireCard(_event, name) {
+    console.log("Desfire format request", name);
+    let reader = readers[name];
+    reader.formatDesfireCard();
+}
+
+function handleProvisionDesfireCard(_event, name) {
+    console.log("Desfire provision request", name);
+    let reader = readers[name];
+    reader.provisionDesfireCard();
+}
+
+function handleDesfireGetApps(_event, name) {
+    console.log("Desfire apps request", name);
+    let reader = readers[name];
+    reader.desfireGetApps();
 }
