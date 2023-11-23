@@ -145,6 +145,21 @@ class FelicaCard {
         console.log(">>", response);
     }
 
+    async lcdTest() {
+        let packet =  Buffer.concat([Buffer.from([0xFF, 0x00, 0x68, 0x00, 16]), Buffer.from("This thing is   ")]);
+        console.log("<<", packet);
+        let response = await this._reader.transmit(packet, 40);
+        console.log(">>", response);
+        packet =  Buffer.concat([Buffer.from([0xFF, 0x00, 0x68, 0x40, 16]), Buffer.from("really cool :D  ")]);
+        console.log("<<", packet);
+        response = await this._reader.transmit(packet, 40);
+        console.log(">>", response);
+        packet =  Buffer.from([0xFF, 0x00, 0x64, 0xFF, 0x00]);
+        console.log("<<", packet);
+        response = await this._reader.transmit(packet, 40);
+        console.log(">>", response);
+    }
+
     async pollxxx() {
         const data = Buffer.from([0x10, 0x06, ...this.uidBinary, 0x01, 0x09, 0x01, 0x01, 0x80, 0x00]);
         const packet = Buffer.from([0xFF, 0x00, 0x00, 0x00, data.length + 3, 0xD4, 0x40, 0x01, ...data]);
@@ -246,21 +261,54 @@ class NfcReader {
                 }
             });
         }*/
-        this.card = new FelicaCard(this._reader, card);
+
+
+        this.card = new DesfireCard(this._reader, card);
+        console.log(this._reader.name + ": Desfire card attached");
+        await this.card.getUid();
+        mainWindow.webContents.send('nfc-card-attached', {
+            reader: this._reader.name,
+            card: {
+                type: "desfire",
+                uid: this.card.uid
+            }
+        });
+
+        let l1 = this.card.uid;
+        let l2 = "";
+
+        let packet =  Buffer.concat([Buffer.from([0xFF, 0x00, 0x68, 0x00, 16]), Buffer.from(l1.padEnd(16, " "))]);
+        console.log("<<", packet);
+        let response = await this.card._reader.transmit(packet, 40);
+        console.log(">>", response);
+        packet =  Buffer.concat([Buffer.from([0xFF, 0x00, 0x68, 0x40, 16]), Buffer.from(l2.padEnd(16, " "))]);
+        console.log("<<", packet);
+        response = await this.card._reader.transmit(packet, 40);
+        console.log(">>", response);
+        packet =  Buffer.from([0xFF, 0x00, 0x64, 0xFF, 0x00]);
+        console.log("<<", packet);
+        response = await this.card._reader.transmit(packet, 40);
+        console.log(">>", response);
+
+        /*this.card = new FelicaCard(this._reader, card);
         console.log(this._reader.name + ": card attached");
         try {
             await this.card.getUid();
             await this.card.poll();
         } catch (exception) {
             // Ignore.
-        }
-        mainWindow.webContents.send('nfc-card-attached', {
+        }*/
+
+        //await this.card.ACR122ledbuzzertest();
+        //await this.card.lcdTest();
+
+        /*mainWindow.webContents.send('nfc-card-attached', {
             reader: this._reader.name,
             card: {
                 type: "unknown",
                 uid: this.card.uid
             }
-        });
+        });*/
     }
 
     async _onCardRemoved(card) {
